@@ -22,7 +22,7 @@ The application consists of:
 This deployment is fully managed using **Pulumi (Python)**. Key components provisioned include:
 
 - VPC with private/public subnets
-- EKS Cluster with small node group (`t3.small`)
+- EKS Cluster with small node group (`t3.medium`)
 - IAM Roles for service accounts (IRSA) to integrate Kubernetes with AWS services
 - Security Groups for EKS and RDS communication
 - PostgreSQL RDS instance in a private subnet
