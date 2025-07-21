@@ -138,16 +138,5 @@ aws.ec2.RouteTableAssociation("demo-private-rta-2",
     opts=pulumi.ResourceOptions(provider=aws_provider)
 )
 
-# Create EKS cluster
-cluster = eks.Cluster("demo-cluster",
-    vpc_id=vpc.id,
-    subnet_ids=[public_subnet_1.id, public_subnet_2.id, private_subnet_1.id, private_subnet_2.id],
-    instance_type="t3.medium",  
-    desired_capacity=1,         # Starting with 1 node for cost saving 
-    min_size=1,
-    max_size=3,                 # Can scale up to 3 if needed
-    node_associate_public_ip_address=False,  # Nodes will be in private subnets
-    tags=common_tags,
-    opts=pulumi.ResourceOptions(provider=aws_provider)
-)
+
 
