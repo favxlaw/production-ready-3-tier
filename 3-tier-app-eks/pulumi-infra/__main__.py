@@ -4,9 +4,13 @@ import pulumi_eks as eks
 import pulumi_kubernetes as k8s
 from pulumi_kubernetes.helm.v3 import Release, ReleaseArgs, RepositoryOptsArgs
 from pulumi_aws import Provider
+config = pulumi.Config()
 
 region = "us-east-1"
 
+db_username = config.require("dbUsername")
+db_password = config.require_secret("dbPassword")  
+db_name = config.require("dbName")
 
 aws_provider = Provider("aws-provider", region=region)
 
@@ -144,14 +148,17 @@ aws.ec2.RouteTableAssociation("demo-private-rta-2",
 cluster = eks.Cluster("demo-cluster",
     vpc_id=vpc.id,
     subnet_ids=[public_subnet_1.id, public_subnet_2.id, private_subnet_1.id, private_subnet_2.id],
-    instance_type="t3.medium",  
-    desired_capacity=1,         # Starting with 1 node 
+    instance_type="t3.medium",
+    desired_capacity=1,
     min_size=1,
-    max_size=3,                 # Can scale up to 3 if needed
-    node_associate_public_ip_address=False,  
+    max_size=3,
+    node_associate_public_ip_address=False,
+    create_oidc_provider=True,
+    version="1.29",           # optional but recommended
     tags=common_tags,
     opts=pulumi.ResourceOptions(provider=aws_provider)
 )
+
 
 # Create IAM role for AWS Load Balancer Controller
 alb_controller_role = aws.iam.Role("demo-alb-controller-role",
@@ -265,7 +272,8 @@ alb_controller_service_account = k8s.core.v1.ServiceAccount("aws-load-balancer-c
 )
 
 # Install AWS Load Balancer Controller using Helm
-alb_controller_helm = Release("aws-load-balancer-controller",
+alb_controller_helm = k8s.helm.v3.Release(
+    "aws-load-balancer-controller",
     ReleaseArgs(
         name="aws-load-balancer-controller",
         chart="aws-load-balancer-controller",
@@ -274,16 +282,24 @@ alb_controller_helm = Release("aws-load-balancer-controller",
             repo="https://aws.github.io/eks-charts"
         ),
         values={
-            "clusterName": cluster.name,
+            "clusterName": cluster.name,  # <-- Output[str], but it's fine here
             "serviceAccount": {
-                "create": False,  #created it above
-                "name": "aws-load-balancer-controller"
+                "create": False,
+                "name": alb_controller_service_account.metadata.name
             },
             "region": region,
             "vpcId": vpc.id,
-        }
+        },
     ),
-    opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[alb_controller_service_account])
+    opts=pulumi.ResourceOptions(
+        provider=k8s_provider,
+        depends_on=[
+            alb_controller_service_account,
+            alb_controller_role,
+            alb_controller_policy_attachment,
+            alb_controller_additional_policy_attachment
+        ]
+    )
 )
 
 # Create a dedicated namespace for our application
@@ -302,9 +318,9 @@ db_secret = k8s.core.v1.Secret("db-secret",
     ),
     type="Opaque",
     string_data={
-        "username": "demo_user",           # temporary, change in production
-        "password": "demo_password_123",   # temporary, change in production
-        "database": "demo_db"
+        "username": db_username,
+        "password": db_password,
+        "database": db_name
     },
     opts=pulumi.ResourceOptions(provider=k8s_provider, depends_on=[app_namespace])
 )

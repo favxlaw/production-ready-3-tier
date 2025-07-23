@@ -1,5 +1,7 @@
 *.pyc
 venv/
 prac.py 
+Pulumi-devi.yaml
+__pycache__
 
 

@@ -1,2 +1,6 @@
 config:
   aws:region: us-east-1
+  pulumi-proj:dbPassword:
+    secure: AAABAN8M1wDsttElZSnRygbAbp83feD/2laSpvNueqiBDdfsnjnKTg0SfjWX7CIasQ==
+  pulumi-proj:dbUsername: demo_user
+  pulumi-proj:dbName: demo_db
